@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kinetic Static CAPTCHA</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .captcha-container {
+            background-color: #1e1e1e;
+            padding: 45px 55px; 
+            border-radius: 16px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.6);
+            text-align: center;
+            border: 1px solid #333;
+        }
+
+        canvas {
+            border: 2px solid #444;
+            border-radius: 8px;
+            background-color: #000;
+            display: block;
+            margin: 0 auto 30px; 
+            image-rendering: pixelated; 
+            image-rendering: crisp-edges;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 18px; 
+            align-items: center;
+        }
+
+        input[type="text"] {
+            padding: 14px;
+            width: 250px;
+            border: 1px solid #555;
+            border-radius: 6px;
+            background-color: #2a2a2a;
+            color: #fff;
+            font-size: 18px;
+            text-align: center;
+            letter-spacing: 3px;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #00adb5;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 15px;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-verify {
+            background-color: #00adb5;
+            color: white;
+            width: 280px;
+            font-size: 16px;
+        }
+
+        .btn-verify:hover {
+            background-color: #007a80;
+        }
+
+        .btn-refresh {
+            background-color: #444;
+            color: #eee;
+            padding: 8px 16px;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        .btn-refresh:hover {
+            background-color: #555;
+        }
+
+        #message {
+            margin-top: 25px;
+            font-weight: bold;
+            font-size: 16px;
+            min-height: 24px;
+        }
+        
+        .success { color: #4edf8b; }
+        .error { color: #ff4d4d; }
+    </style>
+</head>
+<body>
+
+<div class="captcha-container">
+    <canvas id="captchaCanvas" width="500" height="200"></canvas>
+    
+    <div class="controls">
+        <button type="button" class="btn-refresh" id="refreshBtn">↻ New Code</button>
+        <input type="text" id="captchaInput" placeholder="Enter CAPTCHA" autocomplete="off" maxlength="6">
+        <button type="button" class="btn-verify" id="verifyBtn">Verify</button>
+    </div>
+    
+    <div id="message"></div>
+</div>
+
+<script>
+    const canvas = document.getElementById('captchaCanvas');
+    const ctx = canvas.getContext('2d');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const verifyBtn = document.getElementById('verifyBtn');
+    const captchaInput = document.getElementById('captchaInput');
+    const message = document.getElementById('message');
+
+    let captchaText = "";
+    let animationFrameId;
+    
+    const pixelScale = 1; 
+    const viewWidth = canvas.width;
+    const viewHeight = canvas.height;
+    const simWidth = viewWidth / pixelScale;
+    const simHeight = viewHeight / pixelScale;
+
+    const bgSpeed = 1.5;
+    const textSpeed = 2.25;
+
+    let bgOffsetY = 0;
+    let textOffsetY = 0;
+
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = simWidth;
+    maskCanvas.height = simHeight;
+    const maskCtx = maskCanvas.getContext('2d');
+
+    const noiseRows = 400;
+    const noiseCols = simWidth;
+    const noiseGrid = [];
+
+    function generateNoiseGrid() {
+        noiseGrid.length = 0;
+        for (let y = 0; y < noiseRows; y++) {
+            const row = [];
+            for (let x = 0; x < noiseCols; x++) {
+                row.push(Math.random() > 0.5 ? 255 : 0);
+            }
+            noiseGrid.push(row);
+        }
+    }
+
+    function generateCaptchaText() {
+        const chars = "BKHMRXWY34689"; 
+        let result = "";
+        for (let i = 0; i < 4; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    }
+
+    function updateTextMask() {
+        maskCtx.fillStyle = 'black';
+        maskCtx.fillRect(0, 0, simWidth, simHeight);
+        
+        maskCtx.fillStyle = 'white';
+        maskCtx.font = '900 84px "Arial Black", Impact, sans-serif';
+        maskCtx.textBaseline = 'middle';
+        maskCtx.textAlign = 'center';
+        
+        maskCtx.save();
+        maskCtx.translate(simWidth / 2, simHeight / 2);
+        maskCtx.fillText(captchaText, 0, 0);
+        maskCtx.restore();
+    }
+
+    function initCaptcha() {
+        captchaText = generateCaptchaText();
+        generateNoiseGrid();
+        updateTextMask();
+        
+        captchaInput.value = "";
+        message.textContent = "";
+        message.className = "";
+        
+        bgOffsetY = 0;
+        textOffsetY = 0;
+    }
+
+    function draw() {
+        const maskData = maskCtx.getImageData(0, 0, simWidth, simHeight).data;
+        const frameImage = ctx.createImageData(simWidth, simHeight);
+        const frameData = frameImage.data;
+
+        bgOffsetY = (bgOffsetY - bgSpeed + noiseRows) % noiseRows;
+        textOffsetY = (textOffsetY + textSpeed) % noiseRows;
+
+        for (let y = 0; y < simHeight; y++) {
+            for (let x = 0; x < simWidth; x++) {
+                const pixelIndex = (y * simWidth + x) * 4;
+                const isTextPixel = maskData[pixelIndex] > 128; 
+
+                let targetY;
+                if (isTextPixel) {
+                    targetY = Math.floor(y + textOffsetY) % noiseRows;
+                } else {
+                    targetY = Math.floor(y + bgOffsetY) % noiseRows;
+                }
+
+                const colorValue = noiseGrid[targetY][x];
+
+                frameData[pixelIndex]     = colorValue;
+                frameData[pixelIndex + 1] = colorValue;
+                frameData[pixelIndex + 2] = colorValue;
+                frameData[pixelIndex + 3] = 255;
+            }
+        }
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = simWidth;
+        tempCanvas.height = simHeight;
+        tempCanvas.getContext('2d').putImageData(frameImage, 0, 0);
+
+        ctx.clearRect(0, 0, viewWidth, viewHeight);
+        ctx.imageSmoothingEnabled = false; 
+        ctx.drawImage(tempCanvas, 0, 0, viewWidth, viewHeight);
+
+        animationFrameId = requestAnimationFrame(draw);
+    }
+
+    refreshBtn.addEventListener('click', () => {
+        cancelAnimationFrame(animationFrameId);
+        initCaptcha();
+        draw();
+    });
+
+    verifyBtn.addEventListener('click', () => {
+        const userInput = captchaInput.value.trim();
+        if (userInput.toUpperCase() === captchaText.toUpperCase()) {
+            message.textContent = "✓ Verification Successful!";
+            message.className = "success";
+        } else {
+            message.textContent = "✗ Incorrect, please try again.";
+            message.className = "error";
+        }
+    });
+
+    initCaptcha();
+    draw();
+</script>
+
+</body>
+</html>
