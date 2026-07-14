@@ -6,6 +6,8 @@ This paper presents a Proof of Concept (POC) implementation of a CAPTCHA system 
 
 **Keywords:** CAPTCHA, motion detection, security analysis, temporal analysis, optical flow, computer vision attacks
 
+**Demo:** https://sheikhlipu123.github.io/TV-Static-CAPTCHA-Security-Analysis-POC/
+
 ---
 
 ## 1. Introduction
@@ -496,7 +498,7 @@ class TemporalVarianceAttack:
 # Execution
 if __name__ == "__main__":
     attacker = TemporalVarianceAttack(
-        "https://sheikhlipu123.github.io/tv-static-qr-captcha/",
+        "https://sheikhlipu123.github.io/TV-Static-CAPTCHA-Security-Analysis-POC/",
         num_frames=30
     )
     result = attacker.attack()
@@ -559,31 +561,6 @@ TEMPORAL VARIANCE SEGMENTATION ATTACK
 | Increase noise density | Decreases visibility; motion detection still works |
 | Frequent noise regeneration | Per-frame regeneration included in current design |
 | Chromatic aberration | Easily handled by color channel processing |
-
-### 7.2 What Would Actually Work
-
-**Server-Side Verification (Required):**
-```
-Challenge Generation:
-1. Generate random 4-character code on server
-2. Create session token (JWT with expiry)
-3. Serve CAPTCHA UI with token
-4. Store hash(code, salt) server-side
-
-Verification:
-1. Client submits: (user_answer, session_token)
-2. Server validates token (not expired, unused)
-3. Server compares: user_answer == stored_answer
-4. Mark token as consumed
-5. Return signed session cookie
-```
-
-**Multi-Factor Defense:**
-- Rate limiting (5 attempts, 15min cooldown)
-- IP-based geolocation checks
-- Device fingerprinting
-- Behavioral analysis (mouse patterns)
-- WebAuthn/FIDO2 for critical operations
 
 ---
 
