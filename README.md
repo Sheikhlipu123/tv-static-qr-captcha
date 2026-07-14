@@ -20,7 +20,7 @@ CAPTCHA (Completely Automated Public Turing test to tell Computers and Humans Ap
 
 ### 1.2 Animation-Based Obscuration
 
-Recent design explorations have considered animation and motion as obscuration mechanisms, with the intuition that real-time rendering of moving elements might increase difficulty for automated analysis. However, limited published research exists on the actual vulnerability of such approaches.
+Recent design explorations have considered animation and motion as obscuration mechanisms, with the intuition that real-time rendering of moving elements might increase difficulty for automated analysis. To our knowledge, relatively little published research has focused specifically on CAPTCHA systems whose primary defense relies on differential motion.
 
 ### 1.3 Scope and Limitations
 
@@ -48,7 +48,7 @@ This work makes the following contributions:
 
 **Text-based CAPTCHAs** typically use character distortion, rotation, and overlapping. Research has shown that deep learning methods can achieve high recognition rates on distorted text, though the exact success rates depend on training data and attack sophistication.
 
-**Image-based CAPTCHAs** require object recognition tasks. While CNNs have demonstrated strong performance on digit recognition tasks like SVHN (Goodfellow et al., 2013), the applicability to complex object recognition CAPTCHAs varies with design choices.
+**Image-based CAPTCHAs** require object recognition tasks. Research on computer vision has demonstrated strong performance on specific recognition tasks, though the applicability to complex object recognition CAPTCHAs varies with design choices.
 
 **Behavioral and Challenge-Response CAPTCHAs** analyze user interaction patterns and rely on cryptographic verification. These approaches show better resilience to automation than visual obscuration alone.
 
@@ -60,7 +60,7 @@ Very limited published literature exists specifically on CAPTCHAs using differen
 
 **Optical Flow** (Horn & Schunck, 1981; Lucas & Kanade, 1981) remains a fundamental technique for estimating motion between frames. Applications include video object tracking, autonomous navigation, and activity recognition.
 
-**Temporal Segmentation** methods (Torr & Zisserman, 1998) separate moving objects from backgrounds by analyzing motion patterns across frames.
+**Temporal Segmentation** methods analyze differences in motion across image sequences to separate moving regions. Motion segmentation can distinguish objects moving at different velocities or in different directions.
 
 **Morphological Operations** (Serra, 1982) are well-established image processing techniques for noise removal and object extraction.
 
@@ -81,9 +81,9 @@ Very limited published literature exists specifically on CAPTCHAs using differen
 - Distribution: Uniform binary (50% 0, 50% 255)
 
 **Motion Parameters:**
-- Background velocity: v_bg = 1.5 pixels/frame (upward)
-- Text velocity: v_text = 2.25 pixels/frame (downward)
-- Velocity differential: 0.75 pixels/frame
+- Background velocity: v_bg = -1.5 pixels/frame (upward)
+- Text velocity: v_text = +2.25 pixels/frame (downward)
+- Relative speed: 3.75 pixels/frame (opposite directions)
 
 **Character Set:**
 - Alphabet: {B, K, H, M, R, X, W, Y, 3, 4, 6, 8, 9}
@@ -123,7 +123,7 @@ We hypothesize that for CAPTCHA designs relying solely on differential motion cu
 
 **Observation 3:** Motion information visible to human eyes is also available to motion detection algorithms.
 
-We argue that in this particular implementation, the velocity differential (0.75 pixels/frame between text and background) creates exploitable motion information. However, we do not claim this is impossible for all animation schemes.
+We argue that in this particular implementation, the relative speed of 3.75 pixels/frame between text and background, combined with opposite directional motion, creates exploitable motion information. However, we do not claim this is impossible for all animation schemes.
 
 **Revised Statement:** Our observations suggest that practical CAPTCHAs using differential motion face a tension between human readability and resistance to motion segmentation.
 
@@ -232,6 +232,9 @@ class TemporalVarianceAttack:
     
     def compute_temporal_variance(self):
         """Accumulate absolute frame differences"""
+        if len(self.frames) < 2:
+            raise RuntimeError("Need at least two frames to compute temporal variance")
+        
         diff_accumulator = np.zeros_like(self.frames[0], dtype=np.float32)
         
         for i in range(len(self.frames) - 1):
@@ -330,7 +333,7 @@ if __name__ == "__main__":
 
 ### 7.1 Why This Attack May Fail
 
-- **Binary patterns are difficult:** Frame differencing works better on complex textures than pure noise
+- **Binary patterns are difficult:** Performance of frame differencing depends on the statistical properties of the scene and the temporal characteristics of the noise.
 - **OCR limitations:** Even with perfect text extraction, Tesseract may fail on small or degraded text
 - **Parameter sensitivity:** The attack requires careful tuning of morphological kernel sizes, thresholds
 - **Frame rate dependency:** Results depend on frame capture rate, which may vary by system
@@ -403,11 +406,7 @@ Horn, B. K., & Schunck, B. G. (1981). Determining optical flow. *Artificial Inte
 
 Lucas, B. D., & Kanade, T. (1981). An iterative image registration technique with an application to stereo vision. *IJCAI*, 81, 674-679.
 
-Goodfellow, I. J., Bulatov, Y., Ibarz, J., Arnitmam, S., & Shet, V. (2013). Multi-digit number recognition from street view imagery. *arXiv preprint arXiv:1312.6082*.
-
 Serra, J. (1982). *Image analysis and mathematical morphology*. Academic Press.
-
-Torr, P. H., & Zisserman, A. (1998). Performance characterization of fundamental matrix estimation under image uncertainty. *International Journal of Computer Vision*, 29(3), 175-189.
 
 ---
 
@@ -430,9 +429,9 @@ Torr, P. H., & Zisserman, A. (1998). Performance characterization of fundamental
 
 ---
 
-**Document Version:** 2.0 (Revised for accuracy)  
+**Document Version:** 2.1 (Final revision)  
 **Last Updated:** 2026-07-14  
 **Author:** Sheikhlipu123  
 **Status:** Educational White Paper - Not Academic Research
 
-**Feedback:** This document has been reviewed and corrected for technical accuracy and appropriate claim calibration. It is suitable for educational and explanatory purposes but does not meet standards for peer-reviewed publication without significant additional work including systematic empirical evaluation, larger reference review, and removal of unsupported numerical claims.
+**Assessment:** This document has been revised for technical accuracy, appropriate claim calibration, and academic honesty. It is well-suited for educational and explanatory purposes as a GitHub resource or technical blog post.
