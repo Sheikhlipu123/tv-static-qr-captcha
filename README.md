@@ -88,7 +88,7 @@ Limited literature exists on motion-based obscuration. The hypothesis suggests t
 - Alphabet: {B, K, H, M, R, X, W, Y, 3, 4, 6, 8, 9}
 - Rationale: Mutual visual distinctness (excludes 0/O, 1/I/L confusion pairs)
 - Length: 4 characters
-- Entropy: log₂(13⁴) ≈ 15.3 bits
+- Entropy: log₂(13⁴) = log₂(28,561) ≈ **14.8 bits**
 
 **Rendering:**
 - Font: Arial Black, 84px, weight 900
